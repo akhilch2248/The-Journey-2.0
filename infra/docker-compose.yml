@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:14
+    container_name: thejourney-db
+    environment:
+      POSTGRES_USER: journey
+      POSTGRES_PASSWORD: journey_pass
+      POSTGRES_DB: journey_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U journey -d journey_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: ../backend
+    container_name: thejourney-api
+    environment:
+      DATABASE_URL: postgresql://journey:journey_pass@db:5432/journey_db
+      APP_SECRET: ${APP_SECRET:-change-me-compose-dev-secret-0123456789abcdef}
+      AUTH_MODE: ${AUTH_MODE:-dev}
+      APPLE_AUDIENCE: ${APPLE_AUDIENCE:-}
+      GOOGLE_AUDIENCE: ${GOOGLE_AUDIENCE:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

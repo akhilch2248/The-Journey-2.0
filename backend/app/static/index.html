@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>The Journey</title>
+<link rel="stylesheet" href="styles.css?v=4">
+<script>
+  // Apply a saved theme before first paint to avoid a flash.
+  const saved = localStorage.getItem("journey_theme");
+  if (saved === "light" || saved === "dark") document.documentElement.dataset.theme = saved;
+</script>
+</head>
+<body>
+
+<!-- ======================= LOGIN ======================= -->
+<section id="login-view" class="login" hidden>
+  <div class="login-card">
+    <div class="brand-mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32" width="40" height="40" fill="none">
+        <path d="M4 24 C9 24 10 8 16 8 S23 24 28 24" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="28" cy="24" r="3" fill="var(--accent)"/>
+      </svg>
+    </div>
+    <h1>The Journey</h1>
+    <p class="login-sub">Track your weight. See the trend, not the noise.</p>
+
+    <form id="login-form">
+      <div id="dev-identity-block" class="field" hidden>
+        <label for="dev-identity">Account name</label>
+        <input id="dev-identity" name="identity" type="text" autocomplete="username"
+               placeholder="akhil" required minlength="1" maxlength="60">
+        <p class="helper">Dev mode. Any name works and becomes its own private account.</p>
+        <p class="field-error" id="login-error" role="alert" hidden></p>
+      </div>
+
+      <div class="login-buttons">
+        <button type="submit" class="btn btn-provider" data-provider="apple">
+          <!-- Apple logo (Simple Icons) -->
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>
+          Continue with Apple
+        </button>
+        <button type="submit" class="btn btn-provider" data-provider="google">
+          <!-- Google logo (Simple Icons) -->
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" aria-hidden="true"><path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/></svg>
+          Continue with Google
+        </button>
+      </div>
+      <p class="helper" id="prod-note" hidden>Sign-in opens your provider. Your weights stay private to your account.</p>
+    </form>
+  </div>
+</section>
+
+<!-- ======================= APP ======================= -->
+<section id="app-view" hidden>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <svg viewBox="0 0 32 32" width="22" height="22" fill="none" aria-hidden="true">
+          <path d="M4 24 C9 24 10 8 16 8 S23 24 28 24" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="28" cy="24" r="3" fill="var(--accent)"/>
+        </svg>
+        <span>The Journey</span>
+      </div>
+      <div class="topbar-actions">
+        <div class="seg seg-sm" role="group" aria-label="Weight unit">
+          <button type="button" data-unit="kg" aria-pressed="true">kg</button>
+          <button type="button" data-unit="lb" aria-pressed="false">lb</button>
+        </div>
+        <button type="button" id="theme-toggle" class="icon-btn" aria-label="Switch theme">
+          <svg id="theme-icon" viewBox="0 0 256 256" width="18" height="18" fill="currentColor" aria-hidden="true"></svg>
+        </button>
+        <button type="button" id="signout" class="btn btn-ghost">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <!-- Stat tiles -->
+    <div class="stats" id="stats-row">
+      <div class="tile" data-stat="current">
+        <span class="tile-label">Current</span>
+        <span class="tile-value skeleton">&nbsp;</span>
+        <span class="tile-sub"></span>
+      </div>
+      <div class="tile" data-stat="change">
+        <span class="tile-label">Since start</span>
+        <span class="tile-value skeleton">&nbsp;</span>
+        <span class="tile-sub"></span>
+      </div>
+      <div class="tile" data-stat="avg">
+        <span class="tile-label">7-day average</span>
+        <span class="tile-value skeleton">&nbsp;</span>
+        <span class="tile-sub"></span>
+      </div>
+      <div class="tile" data-stat="pace">
+        <span class="tile-label">Pace</span>
+        <span class="tile-value skeleton">&nbsp;</span>
+        <span class="tile-sub"></span>
+      </div>
+    </div>
+
+    <div class="columns">
+      <div class="col-main">
+        <!-- Chart -->
+        <div class="card" id="chart-card">
+          <div class="card-head">
+            <h2>Trend</h2>
+            <div class="seg" role="group" aria-label="Date range" id="range-picker">
+              <button type="button" data-range="30" aria-pressed="true">30D</button>
+              <button type="button" data-range="90" aria-pressed="false">90D</button>
+              <button type="button" data-range="365" aria-pressed="false">1Y</button>
+              <button type="button" data-range="all" aria-pressed="false">All</button>
+            </div>
+          </div>
+          <div class="chart-wrap" id="chart-wrap">
+            <div class="chart-skeleton skeleton" id="chart-skeleton"></div>
+            <svg id="chart" role="img" aria-label="Weight trend chart" hidden></svg>
+            <div id="chart-tip" class="chart-tip" hidden></div>
+            <div class="chart-empty" id="chart-empty" hidden>
+              <p>Your trend line starts with two entries.</p>
+            </div>
+          </div>
+          <div class="legend" id="chart-legend" hidden>
+            <span class="legend-item"><i class="swatch swatch-line"></i>Weight</span>
+            <span class="legend-item"><i class="swatch swatch-avg"></i>7-day average</span>
+            <span class="legend-item" id="legend-goal" hidden><i class="swatch swatch-goal"></i>Goal</span>
+          </div>
+        </div>
+
+        <!-- Entries -->
+        <div class="card">
+          <div class="card-head">
+            <h2>Entries</h2>
+            <span class="count-badge" id="entry-count" hidden></span>
+          </div>
+          <div id="entries-skeleton">
+            <div class="row-skeleton skeleton"></div>
+            <div class="row-skeleton skeleton"></div>
+            <div class="row-skeleton skeleton"></div>
+          </div>
+          <ul class="entries" id="entries-list" hidden></ul>
+          <div class="empty" id="entries-empty" hidden>
+            <!-- Phosphor "note-pencil" -->
+            <svg viewBox="0 0 256 256" width="28" height="28" fill="var(--text-muted)" aria-hidden="true"><path d="M229.66,58.34l-32-32a8,8,0,0,0-11.32,0l-96,96A8,8,0,0,0,88,128v32a8,8,0,0,0,8,8h32a8,8,0,0,0,5.66-2.34l96-96A8,8,0,0,0,229.66,58.34ZM124.69,152H104V131.31l64-64L188.69,88ZM200,76.69,179.31,56,192,43.31,212.69,64ZM224,128v80a16,16,0,0,1-16,16H48a16,16,0,0,1-16-16V48A16,16,0,0,1,48,32h80a8,8,0,0,1,0,16H48V208H208V128a8,8,0,0,1,16,0Z"/></svg>
+            <p>Nothing logged yet.</p>
+            <p class="empty-hint">Add today's weight in the Log weight panel.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-side">
+        <!-- Quick add -->
+        <div class="card">
+          <div class="card-head"><h2>Log weight</h2></div>
+          <form id="add-form">
+            <div class="field">
+              <label for="add-weight">Weight <span class="unit-label">(kg)</span></label>
+              <input id="add-weight" name="weight" type="number" inputmode="decimal"
+                     step="0.1" min="1" required placeholder="94.5">
+            </div>
+            <div class="field">
+              <label for="add-date">Date</label>
+              <input id="add-date" name="date" type="date" required>
+            </div>
+            <div class="field">
+              <label for="add-note">Note <span class="optional">optional</span></label>
+              <input id="add-note" name="note" type="text" maxlength="200" placeholder="after morning run">
+            </div>
+            <p class="field-error" id="add-error" role="alert" hidden></p>
+            <button type="submit" class="btn btn-primary" id="add-submit">Add entry</button>
+          </form>
+        </div>
+
+        <!-- Goal -->
+        <div class="card" id="goal-card">
+          <div class="card-head">
+            <h2>Goal</h2>
+            <button type="button" class="btn btn-ghost btn-sm" id="goal-edit">Set goal</button>
+          </div>
+          <div id="goal-skeleton" class="row-skeleton skeleton"></div>
+          <div id="goal-empty" hidden>
+            <p class="goal-none">No goal yet. Set a target weight and watch the bar move.</p>
+          </div>
+          <div id="goal-body" hidden>
+            <div class="goal-numbers">
+              <div><span class="goal-big" id="goal-lost">0</span><span class="goal-cap">done</span></div>
+              <div><span class="goal-big" id="goal-left">0</span><span class="goal-cap">to go</span></div>
+              <div><span class="goal-big" id="goal-pct">0%</span><span class="goal-cap">complete</span></div>
+            </div>
+            <div class="goal-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="goal-bar">
+              <div class="goal-fill" id="goal-fill"></div>
+            </div>
+            <p class="goal-range" id="goal-range"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</section>
+
+<!-- Edit dialog -->
+<dialog id="edit-dialog">
+  <form id="edit-form" method="dialog">
+    <h2 id="edit-title">Edit entry</h2>
+    <div class="field">
+      <label for="edit-weight">Weight <span class="unit-label">(kg)</span></label>
+      <input id="edit-weight" type="number" inputmode="decimal" step="0.1" min="1" required>
+    </div>
+    <div class="field">
+      <label for="edit-note">Note <span class="optional">optional</span></label>
+      <input id="edit-note" type="text" maxlength="200">
+    </div>
+    <p class="field-error" id="edit-error" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-ghost" id="edit-cancel">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="edit-save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Goal dialog -->
+<dialog id="goal-dialog">
+  <form id="goal-form" method="dialog">
+    <h2>Set your goal</h2>
+    <div class="field">
+      <label for="goal-weight">Target weight <span class="unit-label">(kg)</span></label>
+      <input id="goal-weight" type="number" inputmode="decimal" step="0.1" min="1" required>
+    </div>
+    <div class="field">
+      <label for="goal-date">Target date <span class="optional">optional</span></label>
+      <input id="goal-date" type="date">
+    </div>
+    <p class="field-error" id="goal-error" role="alert" hidden></p>
+    <div class="dialog-actions">
+      <button type="button" class="btn btn-ghost" id="goal-cancel">Cancel</button>
+      <button type="submit" class="btn btn-primary">Save goal</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<script src="app.js?v=4"></script>
+</body>
+</html>
