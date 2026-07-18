@@ -5,3 +5,11 @@ __pycache__/
 *.db
 .DS_Store
 .pytest_cache/
+
+# Xcode
+xcuserdata/
+*.xcuserstate
+DerivedData/
+build/
+*.xcscmblueprint
+*.xccheckout
