@@ -17,7 +17,7 @@ if config.config_file_name is not None:
 # Point Alembic at the app's models and database URL.
 from app.config import get_settings  # noqa: E402
 from app.database import Base  # noqa: E402
-from app.models import Goal, User, WeightLog  # noqa: E402, F401
+import app.models  # noqa: E402, F401 — importing the package registers every table
 
 config.set_main_option("sqlalchemy.url", get_settings().database_url)
 target_metadata = Base.metadata

@@ -63,3 +63,51 @@ revealed as existing).
 |---|---|---|
 | PUT | `/goals` | Body: `{target_weight_kg, target_date?}`. Sets the active goal, replacing any previous one. Starting weight is snapshotted from the latest log; 400 if no weights logged yet. |
 | GET | `/goals/current` | Goal + progress: `current_weight_kg`, `lost_kg`, `remaining_kg`, `percent_complete` (0–100). 404 if no active goal. |
+
+## Training (Forge Phase 1)
+
+All routes require the same Bearer auth; every resource is scoped to its owner
+(404 for anything that isn't yours). Coaching knowledge (exercise library,
+split templates, progression rules) lives in `backend/app/domain/*.json`.
+
+### Physique goals
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/physique-goals` | Multipart: `reference_label` + optional `reference_image`. Supersedes (never deletes) the previous goal. Images are re-encoded — EXIF/GPS stripped — and served only through the authenticated image endpoint. |
+| GET | `/physique-goals/active` | 404 if none. |
+| POST | `/physique-goals/{id}/assessment` | Body: `{emphasis: {region: 0-3}, notes?}`. Regions: shoulder_width, back_width, back_thickness, chest, arms, midsection, quads, glutes_hams, calves, conditioning. At least one must be >0. |
+| GET | `/physique-goals/{id}/image` | The reference image (JPEG). |
+
+### Programs
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/programs/generate` | Body: `{days_per_week: 2-6, equipment: [...], spine_conscious: true}`. Builds from the active goal's gap report (400 without goal/assessment). Archives the previous active program. Spine-conscious filters every exercise tagged `axial_load`, `loaded_spinal_flexion`, `unsupported_hinge`, or `loaded_rotation`. Emphasis ≥2 adds a set; 3 adds an extra isolation movement. |
+| GET | `/programs/active` | Full program: days → exercises with targets. |
+| GET | `/programs/{id}` | Any of your programs (incl. archived). |
+
+### Sessions & progression
+
+| Method | Path | Notes |
+|---|---|---|
+| POST | `/sessions` | Body: `{program_day_id}`. 409 if another session is in progress. Response includes stale-exercise suggestions (14+ days → resume ~10% lighter). |
+| POST | `/sessions/{id}/sets` | Body: `{program_exercise_id, set_number, weight_kg?, reps, rir?, is_amrap?}`. 400 if the exercise isn't part of the session's day. |
+| POST | `/sessions/{id}/complete` | Runs the progression engine per logged exercise. Decisions: `baseline` (first session sets the working weight), `increase` (all sets at rep-range top → +increment, e.g. +2.5 kg barbell compound), `add_rep` (in range → chase reps), `hold` (below range once), `deload` (twice → −10%). |
+| GET | `/sessions` | Latest 20. |
+| GET | `/sessions/{id}` | One session with its sets. |
+
+### Progress photos
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/progress-photos` | Newest first. |
+| POST | `/progress-photos` | Multipart: `image` + optional `taken_at`, `note`. Same EXIF-stripping pipeline. |
+| GET | `/progress-photos/{id}/image` | The photo (JPEG). |
+| DELETE | `/progress-photos/{id}` | Removes the row **and** the file. |
+
+### Exercise library
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/exercises` | Optional `?muscle=` / `?equipment=`. Each entry carries movement pattern, category, contraindication tags, and a coaching cue. |

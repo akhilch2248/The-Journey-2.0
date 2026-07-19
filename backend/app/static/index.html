@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>The Journey</title>
-<link rel="stylesheet" href="styles.css?v=4">
+<link rel="stylesheet" href="styles.css?v=5">
 <script>
   // Apply a saved theme before first paint to avoid a flash.
   const saved = localStorage.getItem("journey_theme");
@@ -64,6 +64,10 @@
         <span>The Journey</span>
       </div>
       <div class="topbar-actions">
+        <div class="seg seg-sm" role="group" aria-label="Section" id="view-switch">
+          <button type="button" data-view="weights" aria-pressed="true">Weight</button>
+          <button type="button" data-view="train" aria-pressed="false">Train</button>
+        </div>
         <div class="seg seg-sm" role="group" aria-label="Weight unit">
           <button type="button" data-unit="kg" aria-pressed="true">kg</button>
           <button type="button" data-unit="lb" aria-pressed="false">lb</button>
@@ -77,6 +81,7 @@
   </header>
 
   <main class="shell">
+    <div id="view-weights">
     <!-- Stat tiles -->
     <div class="stats" id="stats-row">
       <div class="tile" data-stat="current">
@@ -197,6 +202,87 @@
         </div>
       </div>
     </div>
+    </div><!-- /view-weights -->
+
+    <!-- ======================= TRAIN ======================= -->
+    <div id="view-train" hidden>
+
+      <!-- Setup wizard: goal → assessment → generate -->
+      <div class="card wizard" id="train-wizard" hidden>
+        <section id="wiz-goal" hidden>
+          <h2>Set your target</h2>
+          <p class="wiz-sub">Pick the physique you're training toward — an idol, a character, anyone. The program aims at closing that specific gap.</p>
+          <form id="goal-wiz-form">
+            <div class="field">
+              <label for="ref-label">Reference</label>
+              <input id="ref-label" type="text" maxlength="120" placeholder="Vidyut Jammwal, Goku, Batman…" required>
+            </div>
+            <div class="field">
+              <label for="ref-image">Reference photo <span class="optional">optional</span></label>
+              <input id="ref-image" type="file" accept="image/*">
+              <p class="helper">Stored privately to your account; photo metadata is stripped on upload.</p>
+            </div>
+            <p class="field-error" id="wiz-goal-error" role="alert" hidden></p>
+            <button type="submit" class="btn btn-primary">Continue</button>
+          </form>
+        </section>
+
+        <section id="wiz-assess" hidden>
+          <h2>Where should the program aim?</h2>
+          <p class="wiz-sub">Comparing the reference to where you are now, mark what to emphasize. <strong>1</strong> keep in view · <strong>2</strong> extra volume · <strong>3</strong> extra volume + an added movement.</p>
+          <div id="region-rows"></div>
+          <p class="field-error" id="wiz-assess-error" role="alert" hidden></p>
+          <button type="button" class="btn btn-primary" id="assess-save">Save assessment</button>
+        </section>
+
+        <section id="wiz-generate" hidden>
+          <h2>Build the program</h2>
+          <div class="field">
+            <label>Days per week</label>
+            <div class="seg" role="group" aria-label="Days per week" id="days-seg">
+              <button type="button" data-days="2" aria-pressed="false">2</button>
+              <button type="button" data-days="3" aria-pressed="false">3</button>
+              <button type="button" data-days="4" aria-pressed="true">4</button>
+              <button type="button" data-days="5" aria-pressed="false">5</button>
+              <button type="button" data-days="6" aria-pressed="false">6</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Equipment available</label>
+            <div class="equip-grid" id="equip-grid"></div>
+          </div>
+          <label class="spine-row">
+            <input type="checkbox" id="spine-safe" checked>
+            <span><strong>Spine-conscious</strong> — no axial loading, no loaded spinal flexion. Flagged lifts are swapped for supported equivalents (leg press for back squats, chest-supported rows, hip thrusts).</span>
+          </label>
+          <p class="field-error" id="wiz-generate-error" role="alert" hidden></p>
+          <button type="button" class="btn btn-primary" id="generate-btn">Generate program</button>
+        </section>
+      </div>
+
+      <!-- Program / session -->
+      <div class="columns" id="train-columns" hidden>
+        <div class="col-main" id="train-main"></div>
+        <div class="col-side">
+          <div class="card" id="train-goal-card"></div>
+          <div class="card">
+            <div class="card-head">
+              <h2>Progress photos</h2>
+              <label class="btn btn-ghost btn-sm photo-add">Add
+                <input id="photo-input" type="file" accept="image/*" hidden>
+              </label>
+            </div>
+            <div class="photo-grid" id="photo-grid"></div>
+            <p class="helper" id="photo-empty">Track the visual change — one photo every few weeks.</p>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2>Recent sessions</h2></div>
+            <ul class="session-list" id="session-list"></ul>
+            <p class="helper" id="session-empty">Nothing logged yet.</p>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 </section>
 
@@ -240,8 +326,27 @@
   </form>
 </dialog>
 
+<!-- Session summary: what the progression engine decided -->
+<dialog id="summary-dialog">
+  <h2>Session complete</h2>
+  <ul class="decision-list" id="decision-list"></ul>
+  <div class="dialog-actions">
+    <button type="button" class="btn btn-primary" id="summary-done">Done</button>
+  </div>
+</dialog>
+
+<!-- Progress photo viewer -->
+<dialog id="photo-dialog">
+  <img id="photo-full" alt="Progress photo">
+  <p class="helper" id="photo-meta"></p>
+  <div class="dialog-actions">
+    <button type="button" class="btn btn-ghost" id="photo-delete">Delete</button>
+    <button type="button" class="btn btn-primary" id="photo-close">Close</button>
+  </div>
+</dialog>
+
 <div id="toasts" class="toasts" aria-live="polite"></div>
 
-<script src="app.js?v=4"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

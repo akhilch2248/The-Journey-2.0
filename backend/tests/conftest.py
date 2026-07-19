@@ -4,8 +4,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.config import get_settings
 from app.database import Base, get_db
 from app.main import app
+from app.seed import seed_exercises
 
 # One shared in-memory SQLite per test (StaticPool keeps every session on the
 # same connection, otherwise each connection would see an empty database).
@@ -17,9 +19,21 @@ engine = create_engine(
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
+@pytest.fixture(autouse=True)
+def tmp_uploads(tmp_path):
+    """Uploaded images land in a per-test temp dir, never ./uploads."""
+    settings = get_settings()
+    original = settings.upload_dir
+    settings.upload_dir = str(tmp_path / "uploads")
+    yield
+    settings.upload_dir = original
+
+
 @pytest.fixture()
 def client():
     Base.metadata.create_all(bind=engine)
+    with TestingSessionLocal() as seed_db:
+        seed_exercises(seed_db)  # the generator needs the library present
 
     def override_get_db():
         db = TestingSessionLocal()

@@ -23,6 +23,11 @@ class Settings(BaseSettings):
     apple_audience: str = ""   # your iOS bundle id, e.g. com.akhil.thejourney
     google_audience: str = ""  # your Google OAuth client id
 
+    # Reference/progress images land here (gitignored; served only through
+    # authenticated endpoints). Swap for an S3-backed dir in production.
+    upload_dir: str = "./uploads"
+    max_upload_mb: int = 10
+
 
 @lru_cache
 def get_settings() -> Settings:

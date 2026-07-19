@@ -19,3 +19,7 @@ class User(Base):
 
     weights = relationship("WeightLog", back_populates="user", cascade="all, delete-orphan")
     goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
+    physique_goals = relationship("PhysiqueGoal", back_populates="user", cascade="all, delete-orphan")
+    progress_photos = relationship("ProgressPhoto", back_populates="user", cascade="all, delete-orphan")
+    programs = relationship("WorkoutProgram", back_populates="user", cascade="all, delete-orphan")
+    workout_sessions = relationship("WorkoutSession", back_populates="user", cascade="all, delete-orphan")

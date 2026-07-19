@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "updated": "2026-07-18",
+  "source": "physical-trainer knowledge base v1 — slot-based templates; the generator fills slots from the exercise library",
+  "by_days_per_week": {"2": "full_body_2", "3": "full_body_3", "4": "upper_lower_4", "5": "ulplp_5", "6": "ulplp_athlete_6"},
+  "templates": [
+    {
+      "id": "full_body_2",
+      "name": "Full Body ×2",
+      "days": [
+        {"label": "Full Body A", "slots": [
+          {"muscle": "chest", "pattern": "horizontal_push", "category": "compound"},
+          {"muscle": "back_upper", "pattern": "horizontal_pull", "category": "compound"},
+          {"muscle": "quads", "pattern": "squat", "category": "compound"},
+          {"muscle": "glutes", "pattern": "hip_extension", "category": "compound"},
+          {"muscle": "delts_side", "pattern": "raise", "category": "isolation"},
+          {"muscle": "core", "pattern": null, "category": "isolation"}
+        ]},
+        {"label": "Full Body B", "slots": [
+          {"muscle": "back_lats", "pattern": "vertical_pull", "category": "compound"},
+          {"muscle": "chest", "pattern": "incline_push", "category": "compound"},
+          {"muscle": "quads", "pattern": "lunge", "category": "compound"},
+          {"muscle": "hamstrings", "pattern": "leg_curl", "category": "isolation"},
+          {"muscle": "biceps", "pattern": "curl", "category": "isolation"},
+          {"muscle": "triceps", "pattern": "extension", "category": "isolation"}
+        ]}
+      ]
+    },
+    {
+      "id": "full_body_3",
+      "name": "Full Body ×3",
+      "days": [
+        {"label": "Full Body A", "slots": [
+          {"muscle": "chest", "pattern": "horizontal_push", "category": "compound"},
+          {"muscle": "back_upper", "pattern": "horizontal_pull", "category": "compound"},
+          {"muscle": "quads", "pattern": "squat", "category": "compound"},
+          {"muscle": "delts_side", "pattern": "raise", "category": "isolation"},
+          {"muscle": "core", "pattern": "anti_extension", "category": "isolation"}
+        ]},
+        {"label": "Full Body B", "slots": [
+          {"muscle": "back_lats", "pattern": "vertical_pull", "category": "compound"},
+          {"muscle": "delts_front", "pattern": "vertical_push", "category": "compound"},
+          {"muscle": "glutes", "pattern": "hip_extension", "category": "compound"},
+          {"muscle": "hamstrings", "pattern": "leg_curl", "category": "isolation"},
+          {"muscle": "core", "pattern": "anti_rotation", "category": "isolation"}
+        ]},
+        {"label": "Full Body C", "slots": [
+          {"muscle": "chest", "pattern": "incline_push", "category": "compound"},
+          {"muscle": "back_upper", "pattern": "horizontal_pull", "category": "compound"},
+          {"muscle": "quads", "pattern": "lunge", "category": "compound"},
+          {"muscle": "biceps", "pattern": "curl", "category": "isolation"},
+          {"muscle": "triceps", "pattern": "extension", "category": "isolation"},
+          {"muscle": "calves", "pattern": "calf_raise", "category": "isolation"}
+        ]}
+      ]
+    },
+    {
+      "id": "upper_lower_4",
+      "name": "Upper / Lower ×2",
+      "days": [
+        {"label": "Upper 1", "slots": [
+          {"muscle": "chest", "pattern": "horizontal_push", "category": "compound"},
+          {"muscle": "back_upper", "pattern": "horizontal_pull", "category": "compound"},
+          {"muscle": "delts_front", "pattern": "vertical_push", "category": "compound"},
+          {"muscle": "back_lats", "pattern": "vertical_pull", "category": "compound"},
+          {"muscle": "delts_side", "pattern": "raise", "category": "isolation"},
+          {"muscle": "triceps", "pattern": "extension", "category": "isolation"},
+          {"muscle": "biceps", "pattern": "curl", "category": "isolation"}
+        ]},
+        {"label": "Lower 1", "slots": [
+          {"muscle": "quads", "pattern": "squat", "category": "compound"},
+          {"muscle": "glutes", "pattern": "hip_extension", "category": "compound"},
+          {"muscle": "hamstrings", "pattern": "leg_curl", "category": "isolation"},
+          {"muscle": "quads", "pattern": "leg_extension", "category": "isolation"},
+          {"muscle": "calves", "pattern": "calf_raise", "category": "isolation"},
+          {"muscle": "core", "pattern": "anti_extension", "category": "isolation"}
+        ]},
+        {"label": "Upper 2", "slots": [
+          {"muscle": "chest", "pattern": "incline_push", "category": "compound"},
+          {"muscle": "back_lats", "pattern": "vertical_pull", "category": "compound"},
+          {"muscle": "back_upper", "pattern": "horizontal_pull", "category": "compound"},
+          {"muscle": "delts_side", "pattern": "raise", "category": "isolation"},
+          {"muscle": "delts_rear", "pattern": "fly", "category": "isolation"},
+          {"muscle": "biceps", "pattern": "curl", "category": "isolation"},
+          {"muscle": "triceps", "pattern": "extension", "category": "isolation"}
+        ]},
+        {"label": "Lower 2", "slots": [
+          {"muscle": "quads", "pattern": "lunge", "category": "compound"},
+          {"muscle": "glutes", "pattern": "hip_extension", "category": "compound"},
+          {"muscle": "hamstrings", "pattern": "leg_curl", "category": "isolation"},
+          {"muscle": "glutes", "pattern": "hip_extension", "category": "isolation"},
+          {"muscle": "calves", "pattern": "calf_raise", "category": "isolation"},
+          {"muscle": "core", "pattern": "anti_rotation", "category": "isolation"}
+        ]}
+      ]
+    },
+    {
+      "id": "ulplp_5",
+      "name": "ULPLP",
+      "days": [
+        {"label": "Upper", "slots": [
+          {"muscle": "chest", "pattern": "horizontal_push", "category": "compound"},
+          {"muscle": "back_upper", "pattern": "horizontal_pull", "category": "compound"},
+          {"muscle": "delts_front", "pattern": "vertical_push", "category": "compound"},
+          {"muscle": "back_lats", "pattern": "vertical_pull", "category": "compound"},
+          {"muscle": "delts_side", "pattern": "raise", "category": "isolation"},
+          {"muscle": "biceps", "pattern": "curl", "category": "isolation"},
+          {"muscle": "triceps", "pattern": "extension", "category": "isolation"}
+        ]},
+        {"label": "Lower", "slots": [
+          {"muscle": "quads", "pattern": "squat", "category": "compound"},
+          {"muscle": "glutes", "pattern": "hip_extension", "category": "compound"},
+          {"muscle": "hamstrings", "pattern": "leg_curl", "category": "isolation"},
+          {"muscle": "calves", "pattern": "calf_raise", "category": "isolation"},
+          {"muscle": "core", "pattern": "anti_extension", "category": "isolation"}
+        ]},
+        {"label": "Push", "slots": [
+          {"muscle": "chest", "pattern": "incline_push", "category": "compound"},
+          {"muscle": "chest", "pattern": "horizontal_push", "category": "compound"},
+          {"muscle": "delts_front", "pattern": "vertical_push", "category": "compound"},
+          {"muscle": "delts_side", "pattern": "raise", "category": "isolation"},
+          {"muscle": "triceps", "pattern": "extension", "category": "isolation"},
+          {"muscle": "triceps", "pattern": "extension", "category": "isolation"}
+        ]},
+        {"label": "Legs", "slots": [
+          {"muscle": "quads", "pattern": "lunge", "category": "compound"},
+          {"muscle": "glutes", "pattern": "hip_extension", "category": "compound"},
+          {"muscle": "quads", "pattern": "leg_extension", "category": "isolation"},
+          {"muscle": "hamstrings", "pattern": "leg_curl", "category": "isolation"},
+          {"muscle": "calves", "pattern": "calf_raise", "category": "isolation"},
+          {"muscle": "core", "pattern": "anti_rotation", "category": "isolation"}
+        ]},
+        {"label": "Pull", "slots": [
+          {"muscle": "back_lats", "pattern": "vertical_pull", "category": "compound"},
+          {"muscle": "back_upper", "pattern": "horizontal_pull", "category": "compound"},
+          {"muscle": "back_lats", "pattern": "pullover", "category": "isolation"},
+          {"muscle": "delts_rear", "pattern": null, "category": "isolation"},
+          {"muscle": "biceps", "pattern": "curl", "category": "isolation"},
+          {"muscle": "forearms", "pattern": "curl", "category": "isolation"}
+        ]}
+      ]
+    },
+    {
+      "id": "ulplp_athlete_6",
+      "name": "ULPLP + Athlete Day",
+      "days": [
+        {"label": "Upper", "slots": [
+          {"muscle": "chest", "pattern": "horizontal_push", "category": "compound"},
+          {"muscle": "back_upper", "pattern": "horizontal_pull", "category": "compound"},
+          {"muscle": "delts_front", "pattern": "vertical_push", "category": "compound"},
+          {"muscle": "back_lats", "pattern": "vertical_pull", "category": "compound"},
+          {"muscle": "delts_side", "pattern": "raise", "category": "isolation"},
+          {"muscle": "biceps", "pattern": "curl", "category": "isolation"},
+          {"muscle": "triceps", "pattern": "extension", "category": "isolation"}
+        ]},
+        {"label": "Lower", "slots": [
+          {"muscle": "quads", "pattern": "squat", "category": "compound"},
+          {"muscle": "glutes", "pattern": "hip_extension", "category": "compound"},
+          {"muscle": "hamstrings", "pattern": "leg_curl", "category": "isolation"},
+          {"muscle": "calves", "pattern": "calf_raise", "category": "isolation"},
+          {"muscle": "core", "pattern": "anti_extension", "category": "isolation"}
+        ]},
+        {"label": "Push", "slots": [
+          {"muscle": "chest", "pattern": "incline_push", "category": "compound"},
+          {"muscle": "chest", "pattern": "horizontal_push", "category": "compound"},
+          {"muscle": "delts_front", "pattern": "vertical_push", "category": "compound"},
+          {"muscle": "delts_side", "pattern": "raise", "category": "isolation"},
+          {"muscle": "triceps", "pattern": "extension", "category": "isolation"},
+          {"muscle": "triceps", "pattern": "extension", "category": "isolation"}
+        ]},
+        {"label": "Legs", "slots": [
+          {"muscle": "quads", "pattern": "lunge", "category": "compound"},
+          {"muscle": "glutes", "pattern": "hip_extension", "category": "compound"},
+          {"muscle": "quads", "pattern": "leg_extension", "category": "isolation"},
+          {"muscle": "hamstrings", "pattern": "leg_curl", "category": "isolation"},
+          {"muscle": "calves", "pattern": "calf_raise", "category": "isolation"},
+          {"muscle": "core", "pattern": "anti_rotation", "category": "isolation"}
+        ]},
+        {"label": "Pull", "slots": [
+          {"muscle": "back_lats", "pattern": "vertical_pull", "category": "compound"},
+          {"muscle": "back_upper", "pattern": "horizontal_pull", "category": "compound"},
+          {"muscle": "back_lats", "pattern": "pullover", "category": "isolation"},
+          {"muscle": "delts_rear", "pattern": null, "category": "isolation"},
+          {"muscle": "biceps", "pattern": "curl", "category": "isolation"},
+          {"muscle": "forearms", "pattern": "curl", "category": "isolation"}
+        ]},
+        {"label": "Athlete", "slots": [
+          {"muscle": "conditioning", "pattern": null, "category": "conditioning"},
+          {"muscle": "conditioning", "pattern": null, "category": "conditioning"},
+          {"muscle": "conditioning", "pattern": null, "category": "conditioning"},
+          {"muscle": "conditioning", "pattern": null, "category": "conditioning"},
+          {"muscle": "core", "pattern": "anti_rotation", "category": "isolation"}
+        ]}
+      ]
+    }
+  ]
+}

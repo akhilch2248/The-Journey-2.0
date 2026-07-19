@@ -200,6 +200,7 @@ function enterApp() {
   $("#add-date").value = todayISO();
   $("#add-date").max = todayISO();
   refresh();
+  switchView(localStorage.getItem("journey_view") === "train" ? "train" : "weights");
 }
 
 /* ============================== stat tiles ============================== */
@@ -682,6 +683,7 @@ function renderAll() {
   renderChart();
   renderUnit();
   state.firstRender = false;
+  if (train.loaded) renderTrain(); // keep Train targets in the right unit
 }
 
 /* ============================== boot ============================== */
@@ -702,3 +704,729 @@ function renderAll() {
   }
   showLogin();
 })();
+
+/* ============================== train ============================== */
+/* Forge Phase 1: physique goal → gap assessment → generated program →
+   session logging → progression. Talks to /physique-goals, /programs,
+   /sessions, /progress-photos. */
+
+const train = {
+  loaded: false,
+  loading: false,
+  goal: null,        // active PhysiqueGoal or null
+  program: null,     // active WorkoutProgram or null
+  sessions: [],
+  photos: [],
+  session: null,     // in-progress WorkoutSession or null
+  suggestions: {},   // program_exercise_id -> suggested_weight_kg (stale hints)
+  wizard: null,      // forced wizard step: "goal" | "assess" | "generate" | null
+  emphasis: {},      // region -> 0..3 (assessment form state)
+  days: 4,
+  imgURLs: new Map(),
+};
+
+const REGIONS = [
+  ["shoulder_width", "Shoulder width"],
+  ["back_width", "Back width (V-taper)"],
+  ["back_thickness", "Back thickness"],
+  ["chest", "Chest"],
+  ["arms", "Arms"],
+  ["midsection", "Midsection"],
+  ["quads", "Quads"],
+  ["glutes_hams", "Glutes & hamstrings"],
+  ["calves", "Calves"],
+  ["conditioning", "Conditioning"],
+];
+const REGION_LABELS = Object.fromEntries(REGIONS);
+const EQUIPMENT = ["barbell", "dumbbell", "cable", "machine", "bodyweight", "kettlebell", "band"];
+const DEFAULT_EQUIP = new Set(["barbell", "dumbbell", "cable", "machine", "bodyweight"]);
+
+const nul404 = (e) => { if (e.status === 404) return null; throw e; };
+
+async function apiForm(path, formData, method = "POST") {
+  const headers = {};
+  if (state.token) headers.Authorization = `Bearer ${state.token}`;
+  let res;
+  try {
+    res = await fetch(path, { method, body: formData, headers });
+  } catch {
+    throw new ApiError(0, "Can't reach the server. Is the backend running?");
+  }
+  if (res.status === 401 && state.token) {
+    signOut();
+    throw new ApiError(401, "Session expired. Sign in again.");
+  }
+  if (!res.ok) {
+    let detail = res.statusText;
+    try { detail = (await res.json()).detail ?? detail; } catch { /* not json */ }
+    if (Array.isArray(detail)) detail = detail.map((d) => d.msg).join("; ");
+    throw new ApiError(res.status, String(detail));
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+async function imageURL(path) {
+  if (train.imgURLs.has(path)) return train.imgURLs.get(path);
+  const res = await fetch(path, { headers: { Authorization: `Bearer ${state.token}` } });
+  if (!res.ok) throw new ApiError(res.status, "Couldn't load image");
+  const url = URL.createObjectURL(await res.blob());
+  train.imgURLs.set(path, url);
+  return url;
+}
+
+/* ---------- view switch ---------- */
+
+function switchView(view) {
+  localStorage.setItem("journey_view", view);
+  $("#view-weights").hidden = view !== "weights";
+  $("#view-train").hidden = view !== "train";
+  document.querySelectorAll("#view-switch [data-view]").forEach((b) => {
+    b.setAttribute("aria-pressed", String(b.dataset.view === view));
+  });
+  if (view === "train" && !train.loaded && !train.loading) loadTrain();
+}
+document.querySelectorAll("#view-switch [data-view]").forEach((b) => {
+  b.addEventListener("click", () => switchView(b.dataset.view));
+});
+
+async function loadTrain() {
+  train.loading = true;
+  try {
+    const [goal, program, sessions, photos] = await Promise.all([
+      api("/physique-goals/active").catch(nul404),
+      api("/programs/active").catch(nul404),
+      api("/sessions"),
+      api("/progress-photos"),
+    ]);
+    train.goal = goal;
+    train.program = program;
+    train.sessions = sessions;
+    train.photos = photos;
+    train.session = sessions.find((s) => s.status === "in_progress") || null;
+    train.loaded = true;
+    renderTrain();
+  } catch (err) {
+    if (err.status !== 401) toast(err.message, { error: true });
+  } finally {
+    train.loading = false;
+  }
+}
+
+async function reloadProgramAndSessions() {
+  const [program, sessions] = await Promise.all([
+    api("/programs/active").catch(nul404),
+    api("/sessions"),
+  ]);
+  train.program = program;
+  train.sessions = sessions;
+  train.session = sessions.find((s) => s.status === "in_progress") || null;
+}
+
+/* ---------- render root ---------- */
+
+function renderTrain() {
+  if (!train.loaded) return;
+  let step = train.wizard;
+  if (!step) {
+    if (!train.goal) step = "goal";
+    else if (!train.goal.gap_report) step = "assess";
+    else if (!train.program) step = "generate";
+  }
+  $("#train-wizard").hidden = !step;
+  $("#train-columns").hidden = !!step;
+  if (step) {
+    renderWizard(step);
+  } else {
+    if (train.session) renderSessionView(); else renderProgramView();
+    renderGoalCard();
+    renderPhotos();
+    renderSessionsList();
+  }
+}
+function renderTrainIfLoaded() { if (train.loaded) renderTrain(); }
+
+/* ---------- wizard ---------- */
+
+(function buildWizardControls() {
+  const rows = $("#region-rows");
+  REGIONS.forEach(([key, label]) => {
+    const row = document.createElement("div");
+    row.className = "region-row";
+    const name = document.createElement("span");
+    name.className = "region-name";
+    name.textContent = label;
+    const seg = document.createElement("div");
+    seg.className = "seg seg-sm";
+    seg.setAttribute("role", "group");
+    seg.setAttribute("aria-label", `${label} priority`);
+    ["0", "1", "2", "3"].forEach((p) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.dataset.region = key;
+      b.dataset.priority = p;
+      b.textContent = p === "0" ? "–" : p;
+      b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", () => {
+        train.emphasis[key] = Number(p);
+        seg.querySelectorAll("button").forEach((x) => {
+          x.setAttribute("aria-pressed", String(x === b));
+        });
+      });
+      seg.appendChild(b);
+    });
+    row.append(name, seg);
+    rows.appendChild(row);
+  });
+
+  const grid = $("#equip-grid");
+  EQUIPMENT.forEach((eq) => {
+    const label = document.createElement("label");
+    label.className = "equip-chip";
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.value = eq;
+    input.checked = DEFAULT_EQUIP.has(eq);
+    const span = document.createElement("span");
+    span.textContent = eq;
+    label.append(input, span);
+    grid.appendChild(label);
+  });
+})();
+
+function renderWizard(step) {
+  $("#wiz-goal").hidden = step !== "goal";
+  $("#wiz-assess").hidden = step !== "assess";
+  $("#wiz-generate").hidden = step !== "generate";
+  document.querySelectorAll("#train-wizard .field-error").forEach((el) => { el.hidden = true; });
+
+  if (step === "goal" && train.goal) $("#ref-label").value = train.goal.reference_label;
+  if (step === "assess") {
+    const saved = train.goal?.gap_report?.emphasis || {};
+    if (Object.keys(train.emphasis).length === 0) train.emphasis = { ...saved };
+    document.querySelectorAll("#region-rows button").forEach((b) => {
+      const current = train.emphasis[b.dataset.region] ?? 0;
+      b.setAttribute("aria-pressed", String(Number(b.dataset.priority) === current));
+    });
+  }
+}
+
+$("#goal-wiz-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const errEl = $("#wiz-goal-error");
+  errEl.hidden = true;
+  const fd = new FormData();
+  fd.append("reference_label", $("#ref-label").value.trim());
+  const file = $("#ref-image").files[0];
+  if (file) fd.append("reference_image", file);
+  try {
+    train.goal = await apiForm("/physique-goals", fd);
+    train.emphasis = {};
+    train.imgURLs.clear();
+    train.wizard = "assess";
+    $("#ref-image").value = "";
+    renderTrain();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.hidden = false;
+  }
+});
+
+$("#assess-save").addEventListener("click", async () => {
+  const errEl = $("#wiz-assess-error");
+  errEl.hidden = true;
+  const emphasis = Object.fromEntries(
+    Object.entries(train.emphasis).filter(([, v]) => v > 0)
+  );
+  if (Object.keys(emphasis).length === 0) {
+    errEl.textContent = "Mark at least one region 1-3 — that's what the program aims at.";
+    errEl.hidden = false;
+    return;
+  }
+  try {
+    train.goal = await api(`/physique-goals/${train.goal.id}/assessment`, {
+      method: "POST",
+      body: JSON.stringify({ emphasis }),
+    });
+    train.wizard = train.program ? "generate" : null;
+    renderTrain();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.hidden = false;
+  }
+});
+
+$("#days-seg").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-days]");
+  if (!btn) return;
+  train.days = Number(btn.dataset.days);
+  document.querySelectorAll("#days-seg [data-days]").forEach((b) => {
+    b.setAttribute("aria-pressed", String(b === btn));
+  });
+});
+
+$("#generate-btn").addEventListener("click", async () => {
+  const errEl = $("#wiz-generate-error");
+  errEl.hidden = true;
+  const equipment = [...document.querySelectorAll("#equip-grid input:checked")].map((i) => i.value);
+  if (equipment.length === 0) {
+    errEl.textContent = "Pick at least one kind of equipment (bodyweight counts).";
+    errEl.hidden = false;
+    return;
+  }
+  const btn = $("#generate-btn");
+  btn.disabled = true;
+  try {
+    train.program = await api("/programs/generate", {
+      method: "POST",
+      body: JSON.stringify({
+        days_per_week: train.days,
+        equipment,
+        spine_conscious: $("#spine-safe").checked,
+      }),
+    });
+    train.wizard = null;
+    toast("Program ready. First session sets your baselines.");
+    renderTrain();
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.hidden = false;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+/* ---------- program view ---------- */
+
+function fmtTargets(pe) {
+  if (pe.unit === "seconds") return `${pe.target_sets}×${pe.rep_low}-${pe.rep_high}s`;
+  return `${pe.target_sets}×${pe.rep_low}-${pe.rep_high} @${pe.target_rir}RIR`;
+}
+
+function ghostButton(text, onClick) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = "btn btn-ghost btn-sm";
+  b.textContent = text;
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+function renderProgramView() {
+  const main = $("#train-main");
+  main.innerHTML = "";
+  const p = train.program;
+
+  const head = document.createElement("div");
+  head.className = "card program-head";
+  const headRow = document.createElement("div");
+  headRow.className = "card-head";
+  const title = document.createElement("h2");
+  title.textContent = p.name;
+  const actions = document.createElement("div");
+  actions.append(
+    ghostButton("Re-assess", () => { train.wizard = "assess"; renderTrain(); }),
+    ghostButton("Rebuild", () => { train.wizard = "generate"; renderTrain(); }),
+  );
+  headRow.append(title, actions);
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  const chips = [`${p.days_per_week} days/wk`, ...p.equipment];
+  if (p.spine_conscious) chips.unshift("spine-conscious");
+  chips.forEach((c, i) => {
+    const chip = document.createElement("span");
+    chip.className = "chip" + (p.spine_conscious && i === 0 ? " accent" : "");
+    chip.textContent = c;
+    meta.appendChild(chip);
+  });
+  head.append(headRow, meta);
+  main.appendChild(head);
+
+  p.days.forEach((day) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const headEl = document.createElement("div");
+    headEl.className = "card-head";
+    const h = document.createElement("h2");
+    h.textContent = day.day_label;
+    const start = document.createElement("button");
+    start.type = "button";
+    start.className = "btn btn-sm";
+    if (train.session && train.session.program_day_id === day.id) {
+      start.textContent = "Resume";
+    } else {
+      start.textContent = "Start";
+      if (train.session) {
+        start.disabled = true;
+        start.title = "Finish the session in progress first";
+      }
+    }
+    start.addEventListener("click", () => startSession(day));
+    headEl.append(h, start);
+    card.appendChild(headEl);
+
+    day.exercises.forEach((pe) => {
+      const row = document.createElement("div");
+      row.className = "ex-row";
+      const name = document.createElement("span");
+      name.className = "ex-name";
+      name.textContent = pe.exercise.name;
+      name.title = pe.exercise.cue;
+      const muscle = document.createElement("span");
+      muscle.className = "ex-muscle";
+      muscle.textContent = pe.exercise.primary_muscle.replace("_", " ");
+      name.appendChild(muscle);
+      const targets = document.createElement("span");
+      targets.className = "ex-targets";
+      targets.textContent = fmtTargets(pe);
+      const weight = document.createElement("span");
+      weight.className = "ex-weight";
+      weight.textContent = pe.target_weight_kg != null ? fmtW(pe.target_weight_kg) : "—";
+      row.append(name, targets, weight);
+      card.appendChild(row);
+    });
+    main.appendChild(card);
+  });
+}
+
+/* ---------- session view ---------- */
+
+async function startSession(day) {
+  if (train.session && train.session.program_day_id === day.id) {
+    renderTrain();
+    return;
+  }
+  try {
+    const res = await api("/sessions", {
+      method: "POST",
+      body: JSON.stringify({ program_day_id: day.id }),
+    });
+    train.session = res.session;
+    train.suggestions = Object.fromEntries(
+      res.suggestions.map((s) => [s.program_exercise_id, s.suggested_weight_kg])
+    );
+    renderTrain();
+  } catch (err) {
+    toast(err.message, { error: true });
+  }
+}
+
+function renderSessionView() {
+  const main = $("#train-main");
+  main.innerHTML = "";
+  const day = train.program?.days.find((d) => d.id === train.session.program_day_id);
+
+  const card = document.createElement("div");
+  card.className = "card";
+  const headEl = document.createElement("div");
+  headEl.className = "card-head";
+  const h = document.createElement("h2");
+  h.textContent = day ? `${day.day_label} — in progress` : "Session in progress";
+  headEl.appendChild(h);
+  card.appendChild(headEl);
+
+  if (!day) {
+    const p = document.createElement("p");
+    p.className = "helper";
+    p.textContent = "This session belongs to a previous program. Complete it to move on.";
+    card.appendChild(p);
+  } else {
+    const loggedCount = {};
+    train.session.sets.forEach((s) => {
+      loggedCount[s.program_exercise_id] = Math.max(loggedCount[s.program_exercise_id] || 0, s.set_number);
+    });
+
+    day.exercises.forEach((pe) => {
+      const block = document.createElement("div");
+      block.className = "sess-ex";
+      const bh = document.createElement("div");
+      bh.className = "sess-ex-head";
+      const name = document.createElement("h3");
+      name.textContent = pe.exercise.name;
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      chip.textContent = fmtTargets(pe) + (pe.target_weight_kg != null ? ` · ${fmtW(pe.target_weight_kg)}` : "");
+      bh.append(name, chip);
+      block.appendChild(bh);
+
+      const cue = document.createElement("p");
+      cue.className = "sess-cue";
+      cue.textContent = pe.exercise.cue;
+      block.appendChild(cue);
+
+      if (train.suggestions[pe.id] != null) {
+        const s = document.createElement("p");
+        s.className = "sess-suggest";
+        s.textContent = `Been a while — suggested restart: ${fmtW(train.suggestions[pe.id])}`;
+        block.appendChild(s);
+      }
+
+      for (let n = 1; n <= pe.target_sets; n++) {
+        block.appendChild(buildSetRow(pe, n, n <= (loggedCount[pe.id] || 0)));
+      }
+      card.appendChild(block);
+    });
+  }
+
+  const actions = document.createElement("div");
+  actions.className = "session-actions";
+  const complete = document.createElement("button");
+  complete.type = "button";
+  complete.className = "btn btn-primary";
+  complete.textContent = "Complete session";
+  complete.style.width = "auto";
+  complete.addEventListener("click", completeSession);
+  actions.appendChild(complete);
+  card.appendChild(actions);
+  main.appendChild(card);
+}
+
+function buildSetRow(pe, setNumber, alreadyLogged) {
+  const row = document.createElement("div");
+  row.className = "set-row" + (alreadyLogged ? " logged" : "");
+
+  const label = document.createElement("span");
+  label.className = "set-n";
+  label.textContent = `Set ${setNumber}`;
+
+  const weight = document.createElement("input");
+  weight.type = "number";
+  weight.step = "any";
+  weight.min = "0";
+  weight.inputMode = "decimal";
+  weight.placeholder = state.unit;
+  weight.setAttribute("aria-label", `${pe.exercise.name} set ${setNumber} weight (${state.unit})`);
+  const prefillKg = train.suggestions[pe.id] ?? pe.target_weight_kg;
+  if (prefillKg != null) weight.value = toUnit(prefillKg).toFixed(1);
+
+  const reps = document.createElement("input");
+  reps.type = "number";
+  reps.min = "0";
+  reps.step = "1";
+  reps.inputMode = "numeric";
+  reps.placeholder = pe.unit === "seconds" ? "sec" : `${pe.rep_low}-${pe.rep_high}`;
+  reps.setAttribute("aria-label", `${pe.exercise.name} set ${setNumber} ${pe.unit === "seconds" ? "seconds" : "reps"}`);
+
+  const rir = document.createElement("select");
+  rir.setAttribute("aria-label", `${pe.exercise.name} set ${setNumber} reps in reserve`);
+  const optNone = document.createElement("option");
+  optNone.value = "";
+  optNone.textContent = "RIR";
+  rir.appendChild(optNone);
+  for (let v = 0; v <= 4; v++) {
+    const o = document.createElement("option");
+    o.value = String(v);
+    o.textContent = `${v} RIR`;
+    if (v === pe.target_rir) o.selected = true;
+    rir.appendChild(o);
+  }
+
+  const log = document.createElement("button");
+  log.type = "button";
+  log.className = "icon-btn set-log-btn" + (alreadyLogged ? " done" : "");
+  log.setAttribute("aria-label", `Log ${pe.exercise.name} set ${setNumber}`);
+  log.innerHTML = `<svg viewBox="0 0 256 256" width="15" height="15" fill="currentColor" aria-hidden="true"><path d="M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z"/></svg>`;
+
+  if (alreadyLogged) {
+    weight.disabled = reps.disabled = rir.disabled = log.disabled = true;
+  }
+
+  log.addEventListener("click", async () => {
+    const repsVal = parseInt(reps.value, 10);
+    if (Number.isNaN(repsVal)) {
+      reps.focus();
+      return;
+    }
+    const weightVal = weight.value === "" ? null : Math.round(fromUnit(parseFloat(weight.value)) * 100) / 100;
+    log.disabled = true;
+    try {
+      const saved = await api(`/sessions/${train.session.id}/sets`, {
+        method: "POST",
+        body: JSON.stringify({
+          program_exercise_id: pe.id,
+          set_number: setNumber,
+          weight_kg: weightVal,
+          reps: repsVal,
+          rir: rir.value === "" ? null : Number(rir.value),
+        }),
+      });
+      train.session.sets.push(saved);
+      row.classList.add("logged");
+      weight.disabled = reps.disabled = rir.disabled = true;
+      log.classList.add("done");
+    } catch (err) {
+      log.disabled = false;
+      toast(err.message, { error: true });
+    }
+  });
+
+  row.append(label, weight, reps, rir, log);
+  return row;
+}
+
+const DECISION_ICONS = {
+  increase: ["↑", "up"],
+  add_rep: ["→", "flat"],
+  hold: ["→", "flat"],
+  deload: ["↓", "down"],
+  baseline: ["●", "base"],
+};
+
+async function completeSession() {
+  try {
+    const res = await api(`/sessions/${train.session.id}/complete`, { method: "POST" });
+    const list = $("#decision-list");
+    list.innerHTML = "";
+    if (res.decisions.length === 0) {
+      const li = document.createElement("li");
+      li.textContent = "No sets logged — targets stay where they were.";
+      list.appendChild(li);
+    }
+    res.decisions.forEach((d) => {
+      const li = document.createElement("li");
+      const [glyph, cls] = DECISION_ICONS[d.decision] || ["·", "flat"];
+      const icon = document.createElement("span");
+      icon.className = `decision-icon ${cls}`;
+      icon.textContent = glyph;
+      const body = document.createElement("span");
+      body.className = "decision-body";
+      const nameEl = document.createElement("strong");
+      nameEl.textContent = d.exercise_name;
+      const msg = document.createElement("span");
+      msg.textContent = d.message;
+      body.append(nameEl, msg);
+      li.append(icon, body);
+      list.appendChild(li);
+    });
+    train.session = null;
+    train.suggestions = {};
+    $("#summary-dialog").showModal();
+    await reloadProgramAndSessions();
+    renderTrain();
+  } catch (err) {
+    toast(err.message, { error: true });
+  }
+}
+$("#summary-done").addEventListener("click", () => $("#summary-dialog").close());
+
+/* ---------- goal card, photos, session list ---------- */
+
+function renderGoalCard() {
+  const card = $("#train-goal-card");
+  card.innerHTML = "";
+  const headEl = document.createElement("div");
+  headEl.className = "card-head";
+  const h = document.createElement("h2");
+  h.textContent = "Target";
+  headEl.append(h, ghostButton("Change", () => { train.wizard = "goal"; renderTrain(); }));
+  card.appendChild(headEl);
+
+  const label = document.createElement("p");
+  label.style.margin = "0";
+  label.style.fontWeight = "650";
+  label.textContent = train.goal.reference_label;
+  card.appendChild(label);
+
+  const emphasis = train.goal.gap_report?.emphasis || {};
+  const list = document.createElement("div");
+  list.className = "emph-list";
+  Object.entries(emphasis)
+    .sort((a, b) => b[1] - a[1])
+    .forEach(([region, priority]) => {
+      const chip = document.createElement("span");
+      chip.className = "chip" + (priority === 3 ? " accent" : "");
+      chip.textContent = `${REGION_LABELS[region] || region} ·${priority}`;
+      list.appendChild(chip);
+    });
+  card.appendChild(list);
+
+  if (train.goal.has_image) {
+    const img = document.createElement("img");
+    img.className = "goal-ref-img";
+    img.alt = `Reference: ${train.goal.reference_label}`;
+    imageURL(`/physique-goals/${train.goal.id}/image`).then((u) => { img.src = u; }).catch(() => img.remove());
+    card.appendChild(img);
+  }
+}
+
+function renderPhotos() {
+  const grid = $("#photo-grid");
+  grid.innerHTML = "";
+  $("#photo-empty").hidden = train.photos.length !== 0;
+  train.photos.forEach((photo) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "photo-thumb";
+    btn.setAttribute("aria-label", `Progress photo ${photo.taken_at}`);
+    const img = document.createElement("img");
+    img.alt = "";
+    imageURL(`/progress-photos/${photo.id}/image`).then((u) => { img.src = u; }).catch(() => btn.remove());
+    const date = document.createElement("span");
+    date.className = "photo-date";
+    date.textContent = fmtDate(photo.taken_at);
+    btn.append(img, date);
+    btn.addEventListener("click", () => openPhoto(photo));
+    grid.appendChild(btn);
+  });
+}
+
+let viewingPhoto = null;
+function openPhoto(photo) {
+  viewingPhoto = photo;
+  const img = $("#photo-full");
+  img.removeAttribute("src");
+  imageURL(`/progress-photos/${photo.id}/image`).then((u) => { img.src = u; });
+  $("#photo-meta").textContent = fmtDate(photo.taken_at, { month: "long", day: "numeric", year: "numeric" }) + (photo.note ? ` — ${photo.note}` : "");
+  $("#photo-dialog").showModal();
+}
+$("#photo-close").addEventListener("click", () => $("#photo-dialog").close());
+$("#photo-delete").addEventListener("click", async () => {
+  try {
+    await api(`/progress-photos/${viewingPhoto.id}`, { method: "DELETE" });
+    train.imgURLs.delete(`/progress-photos/${viewingPhoto.id}/image`);
+    train.photos = train.photos.filter((p) => p.id !== viewingPhoto.id);
+    $("#photo-dialog").close();
+    renderPhotos();
+    toast("Photo deleted.");
+  } catch (err) {
+    toast(err.message, { error: true });
+  }
+});
+
+$("#photo-input").addEventListener("change", async () => {
+  const file = $("#photo-input").files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append("image", file);
+  fd.append("taken_at", todayISO());
+  try {
+    const photo = await apiForm("/progress-photos", fd);
+    train.photos.unshift(photo);
+    renderPhotos();
+    toast("Photo added.");
+  } catch (err) {
+    toast(err.message, { error: true });
+  } finally {
+    $("#photo-input").value = "";
+  }
+});
+
+function renderSessionsList() {
+  const list = $("#session-list");
+  list.innerHTML = "";
+  $("#session-empty").hidden = train.sessions.length !== 0;
+  const dayLabel = (id) => train.program?.days.find((d) => d.id === id)?.day_label || "Session";
+  train.sessions.slice(0, 8).forEach((s) => {
+    const li = document.createElement("li");
+    const left = document.createElement("span");
+    left.textContent = dayLabel(s.program_day_id) + (s.status === "in_progress" ? " · in progress" : "");
+    const mid = document.createElement("span");
+    mid.className = "sess-when";
+    mid.textContent = new Date(s.started_at).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const right = document.createElement("span");
+    right.className = "sess-count";
+    right.textContent = `${s.sets.length} sets`;
+    li.append(left, mid, right);
+    list.appendChild(li);
+  });
+}

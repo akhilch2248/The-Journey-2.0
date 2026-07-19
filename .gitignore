@@ -13,3 +13,7 @@ DerivedData/
 build/
 *.xcscmblueprint
 *.xccheckout
+
+# uploads (user images — never committed)
+backend/uploads/
+uploads/

@@ -9,7 +9,7 @@ TheJourney/
 │   ├── app/            FastAPI API: auth, weights, goals, stats, /metrics
 │   │   └── static/     The web app (vanilla JS SPA, served at /app)
 │   ├── alembic/        Database migrations
-│   ├── tests/          51 pytest tests (run on in-memory SQLite)
+│   ├── tests/          85 pytest tests (run on in-memory SQLite)
 │   └── Dockerfile
 ├── infra/              docker-compose (Postgres + API), backups, DB inspection
 ├── docs/               API reference, runbook, and the Forge project plan
@@ -27,14 +27,28 @@ Full plan: [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md). The short version:
 
 | Phase | Scope |
 |---|---|
-| **1 (next)** | Workout data models (programs, sessions, set logs, exercise library), structured self-report gap assessment, rule-based plan generator + progression |
+| **1 (built)** | Workout data models, structured self-report gap assessment, rule-based plan generator + progression, session logging, web UI (Train tab) |
 | **2** | Vision-model gap assessment behind the same schema |
 | **3** | iOS surfaces the training features |
 | **4** | Nutrition module (expenditure from weight trend + food log) |
 | **5** | AI coach layer over training + nutrition data |
 
-Everything below — the weight tracking core, auth, and infra — is built, tested,
-and stays as the foundation Phase 1 extends.
+### Phase 1 is live in the web app
+
+The **Train** tab walks the whole loop: set a reference (label + optional
+photo, EXIF-stripped) → mark the gap on a 10-region checklist → generate a
+program (2-6 days/week, equipment-aware, **spine-conscious by default** — no
+axial loading or loaded spinal flexion; flagged lifts swap for supported
+equivalents) → log sets with weight/reps/RIR → completing a session runs the
+progression engine (double progression: reps first, then load; two misses →
+10% deload) and moves next session's targets.
+
+The coaching knowledge is data, not code: `backend/app/domain/exercises.json`
+(80+ movements with contraindication tags and coaching cues), `splits.json`
+(full-body → ULPLP + Athlete Day templates), and `progression.json` (rep
+ranges, increments, deload rules). Editing those files and re-seeding
+(`python -m app.seed`) evolves the coach without touching the engine — and a
+Phase 2 vision assessor plugs into the same gap-report schema.
 
 ## Quick start (no Docker needed)
 
@@ -60,7 +74,10 @@ cd backend && ./venv/bin/python -m pytest
 ```
 
 Covers auth (dev + production token verification), user isolation, weights CRUD
-and validation, stats math, goals, health, and metrics.
+and validation, stats math, goals, health, metrics — and the Forge training
+layer: the progression engine (increase/hold/deload/baseline/AMRAP), generator
+rules (spine filter, emphasis volume, equipment), session flow, and image
+upload validation with EXIF stripping.
 
 ## Production auth (Step 10)
 

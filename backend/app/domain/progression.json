@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "updated": "2026-07-18",
+  "source": "physical-trainer knowledge base v1 — double progression (reps first, then load)",
+  "rep_ranges": {
+    "compound": {"low": 6, "high": 10, "rir": 2, "sets": 3, "unit": "reps"},
+    "isolation": {"low": 10, "high": 15, "rir": 1, "sets": 3, "unit": "reps"},
+    "conditioning": {"low": 30, "high": 60, "rir": 0, "sets": 4, "unit": "seconds"}
+  },
+  "increments_kg": {
+    "barbell": {"compound": 2.5, "isolation": 1.25},
+    "dumbbell": {"compound": 2.0, "isolation": 1.0},
+    "machine": {"compound": 2.5, "isolation": 2.5},
+    "cable": {"compound": 2.5, "isolation": 1.25},
+    "kettlebell": {"compound": 2.0, "isolation": 2.0},
+    "bodyweight": {"compound": 0.0, "isolation": 0.0},
+    "band": {"compound": 0.0, "isolation": 0.0}
+  },
+  "deload_factor": 0.9,
+  "deload_after_misses": 2,
+  "amrap_jump_margin": 3,
+  "stale_days": 14,
+  "stale_factor": 0.9,
+  "max_sets_per_exercise": 5,
+  "max_exercises_per_day": 8
+}
