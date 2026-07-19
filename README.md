@@ -1,7 +1,7 @@
 # The Journey
 
 Weight tracking, full stack: FastAPI backend, a web app it serves itself, and a
-SwiftUI iOS client.
+SwiftUI iOS client — now evolving into **Forge**, an idol-physique training app.
 
 ```
 TheJourney/
@@ -12,9 +12,29 @@ TheJourney/
 │   ├── tests/          51 pytest tests (run on in-memory SQLite)
 │   └── Dockerfile
 ├── infra/              docker-compose (Postgres + API), backups, DB inspection
-├── docs/               API reference + operations runbook
-└── ios-app/            → Xcode project currently at ~/Desktop/The Journey App
+├── docs/               API reference, runbook, and the Forge project plan
+└── ios-app/            SwiftUI client (Xcode project)
 ```
+
+## Where this is going: Forge
+
+The vision has expanded from weight tracking to **training programming against a
+visual target**: upload a reference physique (an idol, a character), log your
+current stats, and the app generates a personalized program aimed at closing that
+specific gap — then auto-regulates it from your logged sets.
+
+Full plan: [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md). The short version:
+
+| Phase | Scope |
+|---|---|
+| **1 (next)** | Workout data models (programs, sessions, set logs, exercise library), structured self-report gap assessment, rule-based plan generator + progression |
+| **2** | Vision-model gap assessment behind the same schema |
+| **3** | iOS surfaces the training features |
+| **4** | Nutrition module (expenditure from weight trend + food log) |
+| **5** | AI coach layer over training + nutrition data |
+
+Everything below — the weight tracking core, auth, and infra — is built, tested,
+and stays as the foundation Phase 1 extends.
 
 ## Quick start (no Docker needed)
 
